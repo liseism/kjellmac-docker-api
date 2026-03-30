@@ -25,5 +25,5 @@ def read_item(item_id: int, q: str = None):
 
 @app.get("/api/ip")
 def ip(request: Request):
-        return{"ip: " request.client.host}
+        return{"ip: " + request.client.host}
 
