@@ -35,7 +35,9 @@ def create_schema():
                 created_at TIMESTAMP DEFAULT now(),
                 address VARCHAR
             );
-            ALTER TABLE guests ADD COLUMN IF NOT EXISTS api_key VARCHAR DEFAULT encode(gen_random_bytes(32), 'hex');
+            ALTER TABLE guests 
+                ADD COLUMN IF NOT EXISTS api_key VARCHAR 
+                DEFAULT encode(gen_random_bytes(32), 'hex');
                     
             -----------
             -- bookings
@@ -55,7 +57,41 @@ def create_schema():
             -- lägg till främmande nyckel senare:
             -- ALTER TABLE bookings ADD CONSTRAINT guest_id_key FOREIGN KEY (guest_id) REFERENCES guests(id);
 
-
-
         """)
+        print("DB schema created")
+
+        cur.execute("""
+            DROP VIEW IF EXISTS bookings_view; 
+            CREATE VIEW bookings_view AS
+                SELECT 
+                    r.room_number,
+                    r.room_type,
+                    g.firstname || ' ' || g.lastname AS guest_name,
+                    (b.dateto - b.datefrom) AS nights,
+                    r.price as price_per_night,
+                    CASE 
+                        WHEN (b.dateto - b.datefrom) >= 7 THEN 
+                            -- 20 percent discount
+                            (b.dateto - b.datefrom) * r.price * 0.8
+                        ELSE (b.dateto - b.datefrom) * r.price
+                    END as total_price,
+                    b.*
+                FROM bookings b
+                INNER JOIN rooms r
+                    ON r.id = b.room_id
+                INNER JOIN guests g
+                    ON g.id = b.guest_id;
+
+            CREATE OR REPLACE VIEW guests_view AS
+                SELECT g.id, 
+                    g.firstname, 
+                    g.lastname, 
+                    g.address,
+                    (SELECT count(*) 
+                        FROM bookings
+                        WHERE guest_id = g.id
+                            AND dateto < now()) AS prev_visits
+                FROM guests g
+        """)
+        print("DB views created")
 
